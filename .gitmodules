@@ -3,6 +3,7 @@
 	url = https://github.com/svpcom/wfb-ng.git
 	branch = master
 
-[submodule "app/devourer"]
-	path = app/devourer
-	url = https://github.com/imagemlt/DualDevourer.git
+[submodule "app/wfbngrtl8812/src/main/cpp/devourer"]
+	path = app/wfbngrtl8812/src/main/cpp/devourer
+	url = https://github.com/imagemlt/DualDevourer
+	branch = android_compat

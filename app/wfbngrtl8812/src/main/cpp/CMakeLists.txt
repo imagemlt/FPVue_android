@@ -49,7 +49,10 @@ add_library(devourer STATIC
         ${CMAKE_SOURCE_DIR}/devourer/src/SelectedChannel.h
         ${CMAKE_SOURCE_DIR}/devourer/src/WiFiDriver.cpp
         ${CMAKE_SOURCE_DIR}/devourer/src/WiFiDriver.h
-        ${CMAKE_SOURCE_DIR}/devourer/src/registry_priv.h)
+        ${CMAKE_SOURCE_DIR}/devourer/src/registry_priv.h
+        ${CMAKE_SOURCE_DIR}/devourer/src/ieee80211_radiotap.h
+        ${CMAKE_SOURCE_DIR}/devourer/src/Radiotap.c
+)
 set_target_properties(devourer PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_SOURCE_DIR}/devourer)
 target_include_directories(devourer PUBLIC ${CMAKE_SOURCE_DIR}/devourer)
 target_include_directories(devourer PUBLIC ${CMAKE_SOURCE_DIR}/devourer/hal)
@@ -59,7 +62,10 @@ set_property(TARGET devourer PROPERTY CXX_STANDARD 20)
 add_library(${CMAKE_PROJECT_NAME} SHARED
         RxFrame.h
         RxFrame.cpp
-        WfbngLink.cpp)
+        TxFrame.h
+        TxFrame.cpp
+        WfbngLink.cpp
+)
 
 target_link_libraries(${CMAKE_PROJECT_NAME}
         devourer

@@ -17,6 +17,7 @@
 #include "devourer/src/WiFiDriver.h"
 #include "wfb-ng/src/wifibroadcast.hpp"
 #include "RxFrame.h"
+#include "TxFrame.h"
 
 #include <sstream>
 #include <iostream>
@@ -36,7 +37,6 @@ std::string uint8_to_hex_string(const uint8_t *v, const size_t s) {
 
 WfbngLink::WfbngLink(JNIEnv* env, jobject context) {
     initAgg();
-    Logger_t log;
     wifi_driver = std::make_unique<WiFiDriver>(log);
 }
 
@@ -45,7 +45,7 @@ void WfbngLink::initAgg() {
     int video_client_port = 5600;
     int mavlink_client_port = 14550;
     std::string client_addr = "127.0.0.1";
-    uint32_t link_id = 7669206 ; // sha1 hash of link_domain="default"
+    link_id = 7669206;
     uint8_t video_radio_port = 0;
     uint8_t mavlink_radio_port = 0x10;
     uint64_t epoch = 0;
@@ -115,6 +115,33 @@ int WfbngLink::run(JNIEnv* env, jobject context, jint wifiChannel, jint fd) {
                 mavlink_aggregator->process_packet(packet.Data.data() + sizeof(ieee80211_header), packet.Data.size() - sizeof(ieee80211_header) - 4, 0, antenna, rssi, noise, freq, 0, 0, NULL);
             }
         };
+
+        usb_event_thread = std::make_unique<std::thread>([ctx,this]{
+            while (true) {
+                int r = libusb_handle_events(ctx);
+                if (r < 0) {
+                    this->log->error("Error handling events: {}", r);
+                    break;
+                }
+            }
+        });
+
+        std::shared_ptr<txArgs> args = std::make_shared<txArgs>();
+        args->udp_port = 14551;
+        args->link_id = link_id;
+        args-> keypair = keyPath;
+        args-> stbc = false;
+        args-> ldpc = false;
+        args->mcs_index = 5;
+        args->vht_mode =false;
+        args->short_gi = false;
+        args->bandwidth = 20;
+        Rtl8812aDevice* current_device = rtl_devices.at(fd).get();
+        usb_tx_thread = std::make_unique<std::thread>([current_device,args]{
+            TxFrame::run(current_device,args.get());
+        });
+        rtl_devices.at(fd)->SetTxPower(40);
+
         rtl_devices.at(fd)->Init(packetProcessor, SelectedChannel{
                 .Channel = static_cast<uint8_t>(wifiChannel),
                 .ChannelOffset = 0,

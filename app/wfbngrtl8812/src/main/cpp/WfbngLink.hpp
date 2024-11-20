@@ -21,9 +21,13 @@ public:
 private:
     const char *keyPath = "/data/user/0/com.geehe.fpvue/files/gs.key";
     std::unique_ptr<WiFiDriver> wifi_driver;
+    uint32_t link_id;
     uint32_t video_channel_id_be;
     uint32_t mavlink_channel_id_be;
+    Logger_t log;
     std::map<int, std::unique_ptr<Rtl8812aDevice>> rtl_devices;
+    std::unique_ptr<std::thread> usb_event_thread;
+    std::unique_ptr<std::thread> usb_tx_thread;
 
 };
 
