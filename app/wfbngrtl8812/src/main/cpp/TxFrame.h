@@ -232,7 +232,7 @@ public:
     void run(Rtl8812aDevice* rtlDevice,txArgs* arg);
     void stop();
 private:
-    bool should_stop = true;
+    bool should_stop = false;
 };
 
 
