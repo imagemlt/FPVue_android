@@ -62,6 +62,7 @@ void WfbngLink::initAgg() {
 int WfbngLink::run(JNIEnv* env, jobject context, jint wifiChannel, jint fd) {
     int r;
     libusb_context *ctx = NULL;
+    unique_ptr<TxFrame> txFrame = make_unique<TxFrame>();
 
     r = libusb_set_option(NULL, LIBUSB_OPTION_NO_DEVICE_DISCOVERY);
 
@@ -116,8 +117,11 @@ int WfbngLink::run(JNIEnv* env, jobject context, jint wifiChannel, jint fd) {
             }
         };
 
-        usb_event_thread = std::make_unique<std::thread>([ctx,this]{
+        usb_event_thread = std::make_unique<std::thread>([ctx,this,&fd]{
             while (true) {
+                auto dev = this->rtl_devices.at(fd).get();
+                if(dev == nullptr)break;
+                if(dev->should_stop)break;
                 int r = libusb_handle_events(ctx);
                 if (r < 0) {
                     this->log->error("Error handling events: {}", r);
@@ -136,9 +140,14 @@ int WfbngLink::run(JNIEnv* env, jobject context, jint wifiChannel, jint fd) {
         args->vht_mode =false;
         args->short_gi = false;
         args->bandwidth = 20;
+        args->radio_port = 144;
+        __android_log_print(ANDROID_LOG_ERROR, TAG,
+                            "radio link ID %d,radio PORT %d",args->link_id,args->radio_port);
         Rtl8812aDevice* current_device = rtl_devices.at(fd).get();
-        usb_tx_thread = std::make_unique<std::thread>([current_device,args]{
-            TxFrame::run(current_device,args.get());
+        TxFrame* tx_frame = txFrame.get();
+        usb_tx_thread = std::make_unique<std::thread>([tx_frame,current_device,args]{
+            tx_frame->run(current_device,args.get());
+            __android_log_print(ANDROID_LOG_DEBUG,TAG,"usb_transfer thread should terminate");
         });
         rtl_devices.at(fd)->SetTxPower(40);
 
@@ -150,13 +159,26 @@ int WfbngLink::run(JNIEnv* env, jobject context, jint wifiChannel, jint fd) {
     } catch (const std::runtime_error& error) {
         __android_log_print(ANDROID_LOG_ERROR, TAG,
                             "runtime_error: %s", error.what());
+        auto dev = rtl_devices.at(fd).get();
+        if (dev){ dev->should_stop = true ;}
+        txFrame->stop();
+        usb_tx_thread->join();
+        usb_event_thread->join();
         return -1;
     }
 
     __android_log_print(ANDROID_LOG_DEBUG, TAG, "Init done, releasing...");
 
+    auto dev = rtl_devices.at(fd).get();
+    if (dev){ dev->should_stop = true ;}
+    txFrame->stop();
+    usb_tx_thread->join();
+    usb_event_thread->join();
+
+
     r = libusb_release_interface(dev_handle, 0);
     __android_log_print(ANDROID_LOG_DEBUG, TAG, "libusb_release_interface: %d", r);
+
 
     libusb_exit(ctx);
     return 0;

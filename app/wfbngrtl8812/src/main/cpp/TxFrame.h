@@ -225,9 +225,14 @@ struct txArgs{
 
 class TxFrame {
 public:
+    TxFrame();
+    ~TxFrame();
     static uint32_t extract_rxq_overflow(struct msghdr *msg);
-    static void data_source(shared_ptr<Transmitter> &t, vector<int> &rx_fd, int fec_timeout, bool mirror, int log_interval);
-    static void run(Rtl8812aDevice* rtlDevice,txArgs* arg);
+    void data_source(shared_ptr<Transmitter> &t, vector<int> &rx_fd, int fec_timeout, bool mirror, int log_interval);
+    void run(Rtl8812aDevice* rtlDevice,txArgs* arg);
+    void stop();
+private:
+    bool should_stop = false;
 };
 
 
