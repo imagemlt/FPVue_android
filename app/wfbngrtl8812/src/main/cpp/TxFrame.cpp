@@ -360,6 +360,12 @@ UsbSocketTransmitter::UsbSocketTransmitter(int k, int n, const string &keypair, 
 
 void UsbSocketTransmitter::inject_packet(const uint8_t *buf, size_t size)
 {
+    if(rtlDevice == nullptr || rtlDevice->should_stop){
+        __android_log_print(ANDROID_LOG_DEBUG, TAG, "主线程退出了，不能再发包");
+
+        throw runtime_error(string_format("main thread exit,should stop"));
+        return;
+    }
     assert(size <= MAX_FORWARDER_PACKET_SIZE);
     uint8_t ieee_hdr[sizeof(ieee80211_header)];
 
@@ -448,6 +454,10 @@ void TxFrame::data_source(shared_ptr<Transmitter> &t, vector<int> &rx_fd, int fe
 
     for(;;)
     {
+        if(should_stop){
+            __android_log_print(ANDROID_LOG_DEBUG,TAG,"tx thread stop");
+            break;
+        }
         uint64_t cur_ts = get_time_ms();
         int poll_timeout = log_send_ts > cur_ts ? log_send_ts - cur_ts : 0;
 
@@ -531,6 +541,10 @@ void TxFrame::data_source(shared_ptr<Transmitter> &t, vector<int> &rx_fd, int fe
 
                 for(;;)
                 {
+                    if(should_stop){
+                        __android_log_print(ANDROID_LOG_DEBUG,TAG,"tx thread stop");
+                        break;
+                    }
                     int fd = fds[i % nfds].fd;
                     struct iovec iov = { .iov_base = (void*)buf,
                             .iov_len = sizeof(buf) };
@@ -786,6 +800,18 @@ void TxFrame::run(Rtl8812aDevice *rtlDevice, txArgs *arg) {
         exit(1);
     }
     //return 0;
+}
+
+TxFrame::TxFrame() {
+
+}
+
+TxFrame::~TxFrame(){
+
+}
+
+void TxFrame::stop(){
+    should_stop = true;
 }
 
 
